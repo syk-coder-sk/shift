@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#2E7D6B" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<title>ほいくシフト</title>
+<style>
+  :root{
+    --bg:#F6F4EE; --surface:#FFFFFF; --surface-2:#FBFAF6;
+    --primary:#2E7D6B; --primary-dark:#1F5A4D; --primary-soft:#E3F0EC;
+    --text:#2A2E2C; --muted:#6B716E; --hint:#9AA09C;
+    --border:rgba(31,38,35,0.10); --border-2:rgba(31,38,35,0.18);
+    --short:#C0492C; --short-soft:#F8E7E1; --short-text:#8E3320;
+    --tight:#B5791A; --tight-soft:#FBEFD7; --tight-text:#825410;
+    --ok:#2E7D6B; --ok-soft:#E3F0EC;
+    --r:12px; --r-sm:8px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Hiragino Maru Gothic ProN','Rounded Mplus 1c','M PLUS Rounded 1c',-apple-system,system-ui,sans-serif;
+    background:var(--bg); color:var(--text); line-height:1.6;
+    -webkit-font-smoothing:antialiased; padding-bottom:env(safe-area-inset-bottom);
+  }
+  #app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);position:relative;padding-bottom:76px}
+  .appbar{position:sticky;top:0;z-index:20;background:var(--primary);color:#fff;padding:calc(env(safe-area-inset-top) + 10px) 16px 12px}
+  .appbar .title{font-size:18px;font-weight:600;margin:0}
+  .appbar .sub{font-size:12px;opacity:.85;margin:0}
+  .navrow{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+  .navrow button{background:rgba(255,255,255,.16);border:none;color:#fff;border-radius:999px;width:34px;height:34px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .navrow .label{font-size:16px;font-weight:600}
+  main{padding:14px 14px 0}
+
+  /* calendar */
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:2px 2px 10px}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+  .dow{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px}
+  .dow span:first-child{color:var(--short)} .dow span:last-child{color:#3E6FB0}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .cell{aspect-ratio:1/1.15;border:0.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);padding:4px 4px 0;display:flex;flex-direction:column;cursor:pointer;position:relative;transition:transform .05s}
+  .cell:active{transform:scale(.97)}
+  .cell.empty{background:transparent;border:none;cursor:default}
+  .cell.today{border:1.5px solid var(--primary)}
+  .cell .d{font-size:13px;font-weight:600}
+  .cell .sat .d{color:#3E6FB0}.cell.sat .d{color:#3E6FB0}.cell.sun .d{color:var(--short)}
+  .cell .cnt{margin-top:auto;font-size:10.5px;color:var(--muted);padding-bottom:3px}
+  .cell .dot{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%}
+  .cell .off-badge{position:absolute;top:3px;left:3px;font-size:9px;line-height:1;padding:2px 3px;border-radius:3px;background:var(--tight-soft);color:var(--tight-text);font-weight:600}
+  .dot.short{background:var(--short)} .dot.tight{background:var(--tight)} .dot.ok{background:var(--ok)}
+  .cell .bars{display:flex;gap:1px;margin-top:auto;padding-bottom:4px}
+  .cell .bars span{flex:1;height:4px;border-radius:1px;background:var(--ok)}
+  .cell .bars span.short{background:var(--short)} .cell .bars span.tight{background:var(--tight)} .cell .bars span.none{background:var(--border-2)}
+
+  /* day view */
+  .day-summary{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:12px}
+  .day-summary .row{display:flex;align-items:center;justify-content:space-between}
+  .badge{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px}
+  .badge.short{background:var(--short-soft);color:var(--short-text)}
+  .badge.tight{background:var(--tight-soft);color:var(--tight-text)}
+  .badge.ok{background:var(--ok-soft);color:var(--primary-dark)}
+  .cov{display:flex;gap:2px;margin-top:12px}
+  .cov .h{flex:1;text-align:center}
+  .cov .h .bar{height:34px;border-radius:3px;display:flex;align-items:flex-end;justify-content:center;background:var(--ok-soft);position:relative;overflow:hidden}
+  .cov .h .bar.short{background:var(--short-soft)} .cov .h .bar.tight{background:var(--tight-soft)}
+  .cov .h .fill{position:absolute;bottom:0;left:0;right:0;background:var(--ok)}
+  .cov .h.short .fill{background:var(--short)} .cov .h.tight .fill{background:var(--tight)}
+  .cov .h .lbl{font-size:9px;color:var(--muted);margin-top:2px}
+  .warn-list{margin:10px 0 0;padding:10px 12px;background:var(--short-soft);border-radius:var(--r-sm);font-size:12.5px;color:var(--short-text)}
+  .warn-list b{font-weight:600}
+  .shift-card{display:flex;align-items:center;gap:11px;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:11px 13px;margin-bottom:8px;cursor:pointer}
+  .shift-card:active{background:var(--surface-2)}
+  .avatar{width:38px;height:38px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600}
+  .shift-card .nm{font-size:14.5px;font-weight:600;margin:0}
+  .shift-card .meta{font-size:12px;color:var(--muted);margin:1px 0 0}
+  .shift-card .time{margin-left:auto;text-align:right;font-size:13px;font-weight:600;white-space:nowrap}
+  .empty-state{text-align:center;color:var(--hint);padding:34px 0;font-size:14px}
+  .empty-state .ic{font-size:30px;display:block;margin-bottom:6px}
+
+  .dayoff-strip{display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:var(--tight-soft);border-radius:var(--r);padding:9px 11px;margin-bottom:12px}
+  .dayoff-strip .tag{font-size:11px;font-weight:600;color:var(--tight-text);background:#fff;border-radius:999px;padding:2px 9px}
+  .dayoff-strip .chip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--tight-text);background:#fff;border-radius:999px;padding:2px 9px 2px 2px}
+  .shift-card.conflict{border-color:var(--tight)}
+  .conflict-tag{font-size:10px;font-weight:600;color:var(--tight-text);background:var(--tight-soft);border-radius:4px;padding:1px 5px;vertical-align:1px}
+
+  /* summary */
+  .sum-total{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+  .sum-total .box{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:11px 13px}
+  .sum-total .box .k{font-size:12px;color:var(--muted)}
+  .sum-total .box .v{font-size:21px;font-weight:600}
+  .sum-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:10px 13px;margin-bottom:8px}
+  .sum-row .info{flex:1;min-width:0}
+  .sum-row .nm{font-size:14px;font-weight:600;margin:0}
+  .sum-row .track{height:6px;border-radius:3px;background:var(--bg);margin-top:5px;overflow:hidden}
+  .sum-row .track .fill{height:100%;border-radius:3px}
+  .sum-row .hrs{text-align:right;white-space:nowrap}
+  .sum-row .hrs .big{font-size:15px;font-weight:600}
+  .sum-row .hrs .sub{font-size:11px;color:var(--muted)}
+
+  /* dayoff list */
+  .off-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:10px 13px;margin-bottom:8px}
+  .off-row .date{font-size:13px;font-weight:600;width:78px;flex:none}
+  .off-row .who{flex:1;min-width:0}
+  .off-row .who .nm{font-size:14px;font-weight:600;margin:0}
+  .off-row .who .rs{font-size:12px;color:var(--muted);margin:0}
+  .off-row.warn{border-color:var(--short)}
+  .off-row .wtag{font-size:10px;color:var(--short-text);background:var(--short-soft);border-radius:4px;padding:2px 6px;margin-left:6px}
+
+  /* settings */
+  .section-title{font-size:13px;font-weight:600;color:var(--muted);margin:18px 4px 8px}
+  .panel{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden}
+  .panel .item{display:flex;align-items:center;gap:11px;padding:11px 13px;border-bottom:0.5px solid var(--border)}
+  .panel .item:last-child{border-bottom:none}
+  .panel .item .nm{font-size:14px;flex:1}
+  .icon-btn{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px}
+  .req-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px}
+  .req-cell{text-align:center}
+  .req-cell label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+  .req-cell input{width:100%}
+
+  /* inputs */
+  input,select,button{font-family:inherit;font-size:15px}
+  input[type=text],input[type=time],input[type=date],input[type=number],select{
+    width:100%;height:42px;padding:0 12px;border:0.5px solid var(--border-2);border-radius:var(--r-sm);background:var(--surface);color:var(--text)
+  }
+  input[type=number]{height:38px;text-align:center;padding:0}
+  label.fld{display:block;font-size:12.5px;color:var(--muted);margin:14px 0 6px;font-weight:600}
+  .btn{height:46px;border-radius:var(--r-sm);border:none;font-weight:600;font-size:15px;cursor:pointer;width:100%}
+  .btn.primary{background:var(--primary);color:#fff}
+  .btn.ghost{background:transparent;color:var(--short);border:0.5px solid var(--border-2)}
+  .btn.small{height:38px;font-size:13px;width:auto;padding:0 16px}
+  .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .preset{height:auto;padding:9px 4px;border:0.5px solid var(--border-2);border-radius:var(--r-sm);background:var(--surface);cursor:pointer;text-align:center}
+  .preset.active{border-color:var(--primary);background:var(--primary-soft)}
+  .preset b{display:block;font-size:13px;font-weight:600;color:var(--primary-dark)}
+  .preset span{font-size:10.5px;color:var(--muted)}
+  .times{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+  .times .sep{color:var(--muted)}
+
+  /* fab + nav */
+  .fab{position:fixed;right:max(16px,calc(50% - 240px + 16px));bottom:calc(86px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 14px rgba(31,90,77,.4);z-index:30;display:flex;align-items:center;justify-content:center}
+  .tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:0.5px solid var(--border);display:flex;z-index:25;padding-bottom:env(safe-area-inset-bottom);max-width:480px;margin:0 auto}
+  .tabbar button{flex:1;background:none;border:none;padding:9px 0 7px;color:var(--hint);cursor:pointer;font-size:11px}
+  .tabbar button .ic{font-size:21px;display:block;line-height:1.1}
+  .tabbar button.active{color:var(--primary)}
+
+  /* modal */
+  .scrim{position:fixed;inset:0;background:rgba(31,38,35,.42);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+  .sheet{background:var(--surface);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:8px 18px calc(20px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto}
+  .sheet .grab{width:38px;height:4px;border-radius:2px;background:var(--border-2);margin:6px auto 8px}
+  .sheet h2{font-size:17px;font-weight:600;margin:2px 0 4px}
+  .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--text);color:#fff;font-size:13px;padding:9px 16px;border-radius:999px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+  .toast.show{opacity:.95}
+  .install{display:none;margin:12px 0 0;width:100%}
+  .form-warn{margin-top:8px;padding:8px 11px;background:var(--tight-soft);color:var(--tight-text);border-radius:var(--r-sm);font-size:12.5px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="appbar">
+    <p class="title">ほいくシフト</p>
+    <p class="sub" id="appsub">職員のシフトと人員配置を管理</p>
+    <div class="navrow" id="navrow"></div>
+  </div>
+  <main id="main"></main>
+</div>
+<button class="fab" id="fab" aria-label="シフトを追加">＋</button>
+<nav class="tabbar" id="tabbar">
+  <button data-v="calendar" class="active"><span class="ic">▦</span>カレンダー</button>
+  <button data-v="summary"><span class="ic">∑</span>集計</button>
+  <button data-v="dayoff"><span class="ic">休</span>希望休</button>
+  <button data-v="settings"><span class="ic">⚙</span>設定</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var LS="hoiku-shift-v1";
+  var WEEK=["日","月","火","水","木","金","土"];
+  var OPEN=7, CLOSE=19; // 07:00 - 19:00
+  var PRESETS=[
+    {key:"early",name:"早番",start:"07:00",end:"16:00"},
+    {key:"mid",name:"中番",start:"08:30",end:"17:30"},
+    {key:"late",name:"遅番",start:"10:00",end:"19:00"}
+  ];
+  var AV=["#2E7D6B","#B5791A","#5B6BB5","#A8527D","#3E8D8A","#9A5B33","#566B8E","#7A6BAE"];
+
+  var state={view:"calendar", ym:null, sel:null, editing:null};
+  var db=load();
+
+  function load(){
+    try{var d=JSON.parse(localStorage.getItem(LS)); if(d&&d.staff){ if(!d.dayoffs)d.dayoffs=[]; return d; }}catch(e){}
+    return seed();
+  }
+  function save(){ try{localStorage.setItem(LS,JSON.stringify(db));}catch(e){} }
+  function seed(){
+    var t=new Date();
+    var staff=[
+      {id:"s1",name:"山田 花子",color:AV[0]},
+      {id:"s2",name:"佐藤 美咲",color:AV[1]},
+      {id:"s3",name:"田中 健太",color:AV[2]},
+      {id:"s4",name:"鈴木 葵",color:AV[3]},
+      {id:"s5",name:"高橋 由美",color:AV[4]},
+      {id:"s6",name:"伊藤 翔",color:AV[5]}
+    ];
+    // hourly requirement for hours 7..18 (12 slots)
+    var req=[2,3,4,4,4,4,4,4,4,3,3,2];
+    var classes=["0歳児","1歳児","2歳児","フリー"];
+    var shifts=[];
+    var idn=1;
+    function k(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+    for(var off=0;off<10;off++){
+      var d=new Date(t.getFullYear(),t.getMonth(),t.getDate()+off-2);
+      var dow=d.getDay();
+      if(dow===0) continue; // closed Sunday
+      var picks= dow===6 ? 2 : (off%4===0?3:4); // make some days short
+      for(var i=0;i<picks;i++){
+        var p=PRESETS[i%3];
+        shifts.push({id:"sh"+(idn++),staffId:staff[(i+off)%6].id,date:k(d),start:p.start,end:p.end,klass:classes[i%4]});
+      }
+    }
+    var dayoffs=[];
+    var d1=new Date(t.getFullYear(),t.getMonth(),t.getDate()+4);
+    var d2=new Date(t.getFullYear(),t.getMonth(),t.getDate()+6);
+    dayoffs.push({id:"do1",staffId:"s2",date:k(d1),reason:"私用"});
+    dayoffs.push({id:"do2",staffId:"s5",date:k(d2),reason:"通院"});
+    return {staff:staff,shifts:shifts,req:req,dayoffs:dayoffs};
+  }
+
+  function pad(n){return (n<10?"0":"")+n;}
+  function toMin(t){var p=t.split(":");return (+p[0])*60+(+p[1]);}
+  function todayKey(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+  function shiftsOn(key){return db.shifts.filter(function(s){return s.date===key;}).sort(function(a,b){return toMin(a.start)-toMin(b.start);});}
+  function staffById(id){for(var i=0;i<db.staff.length;i++)if(db.staff[i].id===id)return db.staff[i];return {name:"?",color:"#999"};}
+  function initials(name){var p=name.trim().split(/\s+/);return (p[0]||"").charAt(0)+((p[1]||"").charAt(0)||"");}
+
+  // 休憩控除：6h超で45分、8h超で60分（労基法の目安）。実働分を返す。
+  function workMinutes(s){
+    var raw=toMin(s.end)-toMin(s.start);
+    var brk = raw>480?60 : (raw>360?45:0);
+    return Math.max(0, raw-brk);
+  }
+  function fmtHM(min){ var h=Math.floor(min/60), m=min%60; return h+"時間"+(m?(" "+m+"分"):""); }
+  function monthPrefix(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1); }
+  function shiftsInMonth(d){ var p=monthPrefix(d); return db.shifts.filter(function(s){return s.date.indexOf(p)===0;}); }
+  function dayoffsInMonth(d){ var p=monthPrefix(d); return db.dayoffs.filter(function(o){return o.date.indexOf(p)===0;}).sort(function(a,b){return a.date<b.date?-1:1;}); }
+  function dayoffsOn(key){ return db.dayoffs.filter(function(o){return o.date===key;}); }
+  function hasDayoff(staffId,key){ return db.dayoffs.some(function(o){return o.staffId===staffId&&o.date===key;}); }
+
+  function coverage(key){
+    var ss=shiftsOn(key), res=[];
+    for(var i=0;i<12;i++){
+      var hour=OPEN+i, mid=hour*60+30, c=0;
+      ss.forEach(function(s){var st=toMin(s.start),en=toMin(s.end); if(st<=mid&&mid<en)c++;});
+      res.push({hour:hour,required:db.req[i],actual:c});
+    }
+    return res;
+  }
+  function dayStatus(key){
+    var cov=coverage(key), short=false, tight=false;
+    cov.forEach(function(c){ if(c.actual<c.required)short=true; else if(c.actual===c.required)tight=true; });
+    return {short:short,tight:tight,count:shiftsOn(key).length,cov:cov};
+  }
+
+  var $=function(id){return document.getElementById(id);};
+  function el(html){var t=document.createElement("template");t.innerHTML=html.trim();return t.content.firstChild;}
+  function esc(s){return (s+"").replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  var toastT;
+  function toast(msg){var t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove("show");},1800);}
+
+  // ---------- render ----------
+  function monthNav(sub){
+    $("appsub").textContent=sub;
+    var d=state.ym, nav=$("navrow");
+    nav.appendChild(el('<button id="pm" aria-label="前の月">‹</button>'));
+    nav.appendChild(el('<span class="label">'+d.getFullYear()+"年"+(d.getMonth()+1)+"月</span>"));
+    nav.appendChild(el('<button id="nm" aria-label="次の月">›</button>'));
+    $("pm").onclick=function(){state.ym=new Date(d.getFullYear(),d.getMonth()-1,1);render();};
+    $("nm").onclick=function(){state.ym=new Date(d.getFullYear(),d.getMonth()+1,1);render();};
+  }
+  function render(){
+    var nav=$("navrow"); nav.innerHTML="";
+    if(state.view==="calendar"){
+      monthNav("月の人員配置をひと目で確認");
+      renderCalendar();
+    }else if(state.view==="today"||state.view==="day"){
+      renderDay();
+    }else if(state.view==="summary"){
+      monthNav("職員ごとの月間勤務時間");
+      renderSummary();
+    }else if(state.view==="dayoff"){
+      monthNav("希望休の登録と一覧");
+      renderDayoff();
+    }else if(state.view==="settings"){
+      $("appsub").textContent="職員と必要人数の設定";
+      renderSettings();
+    }
+    document.querySelectorAll(".tabbar button").forEach(function(b){
+      var v=b.getAttribute("data-v");
+      b.classList.toggle("active", v===state.view || (v==="calendar"&&state.view==="day"));
+    });
+    var showFab=(state.view==="calendar"||state.view==="day");
+    $("fab").style.display=showFab?"flex":"none";
+  }
+
+  function renderCalendar(){
+    var d=state.ym, y=d.getFullYear(), m=d.getMonth();
+    var first=new Date(y,m,1).getDay();
+    var days=new Date(y,m+1,0).getDate();
+    var tk=todayKey();
+    var html='<div class="legend">'
+      +'<span><i class="dot ok" style="background:var(--ok)"></i>充足</span>'
+      +'<span><i style="background:var(--tight)"></i>ぎりぎり</span>'
+      +'<span><i style="background:var(--short)"></i>人員不足</span>'
+      +'<span><i style="background:var(--tight);border-radius:2px"></i>希望休あり</span></div>'
+      +'<div class="dow">'+WEEK.map(function(w){return "<span>"+w+"</span>";}).join("")+'</div>'
+      +'<div class="cal">';
+    for(var i=0;i<first;i++) html+='<div class="cell empty"></div>';
+    for(var day=1;day<=days;day++){
+      var key=y+"-"+pad(m+1)+"-"+pad(day);
+      var dow=new Date(y,m,day).getDay();
+      var st=dayStatus(key);
+      var noff=dayoffsOn(key).length;
+      var cls="cell"+(key===tk?" today":"")+(dow===0?" sun":"")+(dow===6?" sat":"");
+      var bars="";
+      if(st.count>0){
+        bars='<div class="bars">'+st.cov.map(function(c){
+          var k=c.actual<c.required?"short":(c.actual===c.required?"tight":"ok");
+          if(c.actual===0&&c.required===0)k="none";
+          return '<span class="'+k+'"></span>';
+        }).join("")+'</div>';
+      }
+      html+='<div class="'+cls+'" data-key="'+key+'">'
+        +'<span class="d">'+day+'</span>'
+        +(noff?'<span class="off-badge">休'+noff+'</span>':'')
+        +(st.short?'<span class="dot short"></span>':(st.tight?'<span class="dot tight"></span>':(st.count>0?'<span class="dot ok"></span>':'')))
+        +(st.count>0?bars+'<span class="cnt">'+st.count+'名</span>':'<span class="cnt"></span>')
+        +'</div>';
+    }
+    html+='</div>';
+    $("main").innerHTML=html;
+    document.querySelectorAll(".cell[data-key]").forEach(function(c){
+      c.onclick=function(){ state.sel=c.getAttribute("data-key"); state.view="day"; render(); };
+    });
+  }
+
+  function fmtDateJP(key){var p=key.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]);return (+p[1])+"月"+(+p[2])+"日（"+WEEK[d.getDay()]+"）";}
+
+  function renderDay(){
+    var key = state.view==="today" ? todayKey() : state.sel;
+    if(!key) key=todayKey();
+    state.sel=key;
+    $("appsub").textContent=fmtDateJP(key);
+    var nav=$("navrow");
+    nav.appendChild(el('<button id="back" aria-label="カレンダーへ">‹</button>'));
+    nav.appendChild(el('<span class="label">'+fmtDateJP(key)+'</span>'));
+    nav.appendChild(el('<span style="width:34px"></span>'));
+    $("back").onclick=function(){state.view="calendar";render();};
+
+    var st=dayStatus(key);
+    var ss=shiftsOn(key);
+    var badge = st.short?'<span class="badge short">人員不足あり</span>'
+              : st.tight?'<span class="badge tight">ぎりぎり</span>'
+              : (st.count>0?'<span class="badge ok">充足</span>':'<span class="badge ok">未登録</span>');
+
+    var cov='<div class="cov">'+st.cov.map(function(c){
+      var k=c.actual<c.required?"short":(c.actual===c.required?"tight":"ok");
+      var max=Math.max(c.required,c.actual,1);
+      var h=Math.round(c.actual/max*100);
+      return '<div class="h '+k+'"><div class="bar '+k+'"><div class="fill" style="height:'+h+'%"></div></div><div class="lbl">'+c.hour+'</div></div>';
+    }).join("")+'</div>';
+
+    var shortHours=st.cov.filter(function(c){return c.actual<c.required;});
+    var warn="";
+    if(shortHours.length){
+      warn='<div class="warn-list">⚠ '+shortHours.map(function(c){
+        return '<b>'+c.hour+':00台</b> '+c.actual+'/'+c.required+'名（あと'+(c.required-c.actual)+'名）';
+      }).join("、 ")+'</div>';
+    }
+
+    var html='<div class="day-summary"><div class="row"><div><div style="font-size:13px;color:var(--muted)">登録シフト</div><div style="font-size:22px;font-weight:600">'+st.count+'<span style="font-size:13px;color:var(--muted);font-weight:400"> 名</span></div></div>'+badge+'</div>'
+      +'<div style="font-size:11px;color:var(--hint);margin-top:10px">時間帯別の充足（7時〜18時台）</div>'+cov+warn+'</div>';
+
+    var offs=dayoffsOn(key);
+    if(offs.length){
+      html+='<div class="dayoff-strip"><span class="ttl"><span class="tag">希望休</span></span>'+offs.map(function(o){
+        var p=staffById(o.staffId);
+        return '<span class="chip"><span class="avatar" style="width:22px;height:22px;font-size:10px;background:'+p.color+'">'+esc(initials(p.name))+'</span>'+esc(p.name)+(o.reason?'（'+esc(o.reason)+'）':'')+'</span>';
+      }).join("")+'</div>';
+    }
+
+    if(ss.length===0){
+      html+='<div class="empty-state"><span class="ic">◷</span>この日のシフトはまだありません<br>右下の＋から追加できます</div>';
+    }else{
+      html+=ss.map(function(s){
+        var st2=staffById(s.staffId);
+        var conflict=hasDayoff(s.staffId,key);
+        return '<div class="shift-card'+(conflict?' conflict':'')+'" data-id="'+s.id+'">'
+          +'<div class="avatar" style="background:'+st2.color+'">'+esc(initials(st2.name))+'</div>'
+          +'<div style="min-width:0;flex:1"><p class="nm">'+esc(st2.name)+(conflict?' <span class="conflict-tag">希望休</span>':'')+'</p><p class="meta">'+esc(s.klass||"—")+'</p></div>'
+          +'<div class="time">'+s.start+'<br><span style="color:var(--muted);font-weight:400">〜'+s.end+'</span></div></div>';
+      }).join("");
+    }
+    $("main").innerHTML=html;
+    document.querySelectorAll(".shift-card[data-id]").forEach(function(c){
+      c.onclick=function(){ openForm(c.getAttribute("data-id")); };
+    });
+  }
+
+  // ---------- monthly hours summary ----------
+  function renderSummary(){
+    var ms=shiftsInMonth(state.ym);
+    var rows=db.staff.map(function(p){
+      var mine=ms.filter(function(s){return s.staffId===p.id;});
+      var min=0; mine.forEach(function(s){min+=workMinutes(s);});
+      return {staff:p,count:mine.length,min:min};
+    }).sort(function(a,b){return b.min-a.min;});
+    var totalMin=rows.reduce(function(a,r){return a+r.min;},0);
+    var totalCnt=rows.reduce(function(a,r){return a+r.count;},0);
+    var maxMin=Math.max.apply(null,rows.map(function(r){return r.min;}).concat([1]));
+
+    var html='<div class="sum-total">'
+      +'<div class="box"><div class="k">のべシフト数</div><div class="v">'+totalCnt+'<span style="font-size:12px;color:var(--muted);font-weight:400"> 本</span></div></div>'
+      +'<div class="box"><div class="k">総実働時間</div><div class="v">'+(Math.round(totalMin/60*10)/10)+'<span style="font-size:12px;color:var(--muted);font-weight:400"> 時間</span></div></div>'
+      +'</div>';
+    if(totalCnt===0){
+      html+='<div class="empty-state"><span class="ic">∑</span>この月のシフトはまだありません</div>';
+    }else{
+      html+=rows.map(function(r){
+        var w=Math.round(r.min/maxMin*100);
+        return '<div class="sum-row">'
+          +'<div class="avatar" style="width:34px;height:34px;font-size:13px;background:'+r.staff.color+'">'+esc(initials(r.staff.name))+'</div>'
+          +'<div class="info"><p class="nm">'+esc(r.staff.name)+'</p><div class="track"><div class="fill" style="width:'+w+'%;background:'+r.staff.color+'"></div></div></div>'
+          +'<div class="hrs"><div class="big">'+fmtHM(r.min)+'</div><div class="sub">'+r.count+'本</div></div>'
+          +'</div>';
+      }).join("");
+      html+='<div style="font-size:11.5px;color:var(--hint);text-align:center;margin:12px 4px 4px">実働時間は休憩（6時間超で45分・8時間超で60分）を差し引いた時間です。</div>';
+    }
+    $("main").innerHTML=html;
+  }
+
+  // ---------- day-off requests ----------
+  function renderDayoff(){
+    var offs=dayoffsInMonth(state.ym);
+    var html='<button class="btn primary" id="addoff" style="margin:2px 0 14px"><span style="font-size:18px;vertical-align:-2px">＋</span> 希望休を登録</button>';
+    if(offs.length===0){
+      html+='<div class="empty-state"><span class="ic">休</span>この月の希望休はまだありません</div>';
+    }else{
+      html+=offs.map(function(o){
+        var p=staffById(o.staffId);
+        var assigned=shiftsOn(o.date).some(function(s){return s.staffId===o.staffId;});
+        var pp=o.date.split("-");
+        var dd=new Date(+pp[0],+pp[1]-1,+pp[2]);
+        var dstr=(+pp[1])+"/"+(+pp[2])+"（"+WEEK[dd.getDay()]+"）";
+        return '<div class="off-row'+(assigned?' warn':'')+'" data-id="'+o.id+'" data-date="'+o.date+'">'
+          +'<div class="date">'+dstr+'</div>'
+          +'<div class="avatar" style="width:30px;height:30px;font-size:12px;background:'+p.color+'">'+esc(initials(p.name))+'</div>'
+          +'<div class="who"><p class="nm">'+esc(p.name)+(assigned?'<span class="wtag">シフトと重複</span>':'')+'</p><p class="rs">'+esc(o.reason||"希望休")+'</p></div>'
+          +'<button class="icon-btn" data-del="'+o.id+'" aria-label="削除">✕</button>'
+          +'</div>';
+      }).join("");
+      html+='<div style="font-size:11.5px;color:var(--hint);text-align:center;margin:12px 4px 4px">「シフトと重複」は、希望休の日にその職員のシフトが入っている状態です。</div>';
+    }
+    $("main").innerHTML=html;
+    $("addoff").onclick=function(){ openDayoffForm(); };
+    document.querySelectorAll(".off-row").forEach(function(r){
+      r.onclick=function(e){ if(e.target.hasAttribute("data-del"))return; state.sel=r.getAttribute("data-date"); state.view="day"; render(); };
+    });
+    document.querySelectorAll("[data-del]").forEach(function(b){
+      b.onclick=function(e){ e.stopPropagation();
+        var id=b.getAttribute("data-del");
+        db.dayoffs=db.dayoffs.filter(function(o){return o.id!==id;});
+        save(); renderDayoff(); toast("希望休を取り消しました");
+      };
+    });
+  }
+
+  function openDayoffForm(){
+    var scrim=el('<div class="scrim"></div>');
+    var staffOpts=db.staff.map(function(s){return '<option value="'+s.id+'">'+esc(s.name)+'</option>';}).join("");
+    var dft=new Date(state.ym.getFullYear(),state.ym.getMonth(),1);
+    var defDate=todayKey().indexOf(monthPrefix(state.ym))===0?todayKey():(monthPrefix(state.ym)+"-01");
+    var sheet=el('<div class="sheet"></div>');
+    sheet.innerHTML='<div class="grab"></div><h2>希望休を登録</h2>'
+      +'<label class="fld">職員</label><select id="o-staff">'+staffOpts+'</select>'
+      +'<label class="fld">日付</label><input type="date" id="o-date" value="'+defDate+'">'
+      +'<label class="fld">理由（任意）</label><input type="text" id="o-reason" placeholder="私用・通院 など">'
+      +'<button class="btn primary" id="o-save" style="margin-top:18px">登録する</button>';
+    scrim.appendChild(sheet); document.body.appendChild(scrim);
+    scrim.addEventListener("click",function(e){if(e.target===scrim)scrim.remove();});
+    sheet.querySelector("#o-save").onclick=function(){
+      var staffId=sheet.querySelector("#o-staff").value;
+      var date=sheet.querySelector("#o-date").value;
+      var reason=sheet.querySelector("#o-reason").value.trim();
+      if(!staffId||!date){toast("職員と日付を選んでください");return;}
+      if(hasDayoff(staffId,date)){toast("すでに登録されています");return;}
+      db.dayoffs.push({id:"do"+Date.now(),staffId:staffId,date:date,reason:reason});
+      save(); scrim.remove(); toast("希望休を登録しました");
+      if(state.view==="dayoff")renderDayoff(); else render();
+    };
+  }
+
+  function renderSettings(){
+    $("navrow").innerHTML='<span class="label">設定</span>';
+    var html='<div class="section-title">職員（'+db.staff.length+'名）</div><div class="panel" id="stafflist">';
+    html+=db.staff.map(function(s){
+      return '<div class="item"><div class="avatar" style="width:30px;height:30px;font-size:12px;background:'+s.color+'">'+esc(initials(s.name))+'</div><span class="nm">'+esc(s.name)+'</span><button class="icon-btn" data-del="'+s.id+'" aria-label="削除">✕</button></div>';
+    }).join("");
+    html+='<div class="item"><input type="text" id="newstaff" placeholder="新しい職員の名前" style="flex:1"><button class="btn small primary" id="addstaff">追加</button></div></div>';
+
+    html+='<div class="section-title">時間帯ごとの必要人数</div><div class="panel"><div class="req-grid" id="reqgrid">';
+    for(var i=0;i<12;i++){
+      html+='<div class="req-cell"><label>'+(OPEN+i)+':00台</label><input type="number" min="0" max="20" value="'+db.req[i]+'" data-req="'+i+'"></div>';
+    }
+    html+='</div></div>';
+    html+='<button class="btn primary install" id="installbtn">📲 ホーム画面に追加</button>';
+    html+='<div style="font-size:11.5px;color:var(--hint);text-align:center;margin:14px 4px 4px">データはこの端末内（ブラウザ）に保存されます。オフラインでも利用できます。</div>';
+    $("main").innerHTML=html;
+
+    $("addstaff").onclick=function(){
+      var v=$("newstaff").value.trim(); if(!v)return;
+      db.staff.push({id:"s"+Date.now(),name:v,color:AV[db.staff.length%AV.length]});
+      save();renderSettings();toast("職員を追加しました");
+    };
+    document.querySelectorAll("[data-del]").forEach(function(b){
+      b.onclick=function(){
+        var id=b.getAttribute("data-del");
+        if(!confirm("この職員を削除しますか？関連するシフトも削除されます。"))return;
+        db.staff=db.staff.filter(function(s){return s.id!==id;});
+        db.shifts=db.shifts.filter(function(s){return s.staffId!==id;});
+        save();renderSettings();toast("削除しました");
+      };
+    });
+    document.querySelectorAll("[data-req]").forEach(function(inp){
+      inp.onchange=function(){ db.req[+inp.getAttribute("data-req")]=Math.max(0,+inp.value||0); save(); toast("必要人数を更新しました"); };
+    });
+    if(deferredPrompt){ var ib=$("installbtn"); ib.style.display="block"; ib.onclick=doInstall; }
+  }
+
+  // ---------- form (add / edit) ----------
+  function openForm(editId){
+    var ed = editId ? db.shifts.filter(function(s){return s.id===editId;})[0] : null;
+    var key = state.sel || todayKey();
+    var cur = ed ? {staffId:ed.staffId,date:ed.date,start:ed.start,end:ed.end,klass:ed.klass}
+                 : {staffId:db.staff[0]?db.staff[0].id:"",date:key,start:"07:00",end:"16:00",klass:"0歳児"};
+
+    var scrim=el('<div class="scrim"></div>');
+    var staffOpts=db.staff.map(function(s){return '<option value="'+s.id+'"'+(s.id===cur.staffId?" selected":"")+'>'+esc(s.name)+'</option>';}).join("");
+    var classOpts=["0歳児","1歳児","2歳児","3歳児","4歳児","5歳児","フリー","早朝・延長"].map(function(c){return '<option'+(c===cur.klass?" selected":"")+'>'+c+'</option>';}).join("");
+    var presetHtml=PRESETS.map(function(p){
+      var on=(p.start===cur.start&&p.end===cur.end);
+      return '<div class="preset'+(on?" active":"")+'" data-s="'+p.start+'" data-e="'+p.end+'"><b>'+p.name+'</b><span>'+p.start+'〜'+p.end+'</span></div>';
+    }).join("");
+
+    var sheet=el('<div class="sheet"></div>');
+    sheet.innerHTML='<div class="grab"></div>'
+      +'<h2>'+(ed?"シフトを編集":"シフトを追加")+'</h2>'
+      +'<label class="fld">職員</label><select id="f-staff">'+staffOpts+'</select>'
+      +'<div id="f-offwarn"></div>'
+      +'<label class="fld">日付</label><input type="date" id="f-date" value="'+cur.date+'">'
+      +'<label class="fld">勤務パターン</label><div class="presets" id="f-presets">'+presetHtml+'</div>'
+      +'<label class="fld">時間</label><div class="times"><input type="time" id="f-start" value="'+cur.start+'"><span class="sep">〜</span><input type="time" id="f-end" value="'+cur.end+'"></div>'
+      +'<label class="fld">担当クラス</label><select id="f-class">'+classOpts+'</select>'
+      +'<button class="btn primary" id="f-save" style="margin-top:18px">'+(ed?"保存する":"追加する")+'</button>'
+      +(ed?'<button class="btn ghost" id="f-del" style="margin-top:10px">このシフトを削除</button>':'');
+    scrim.appendChild(sheet);
+    document.body.appendChild(scrim);
+
+    scrim.addEventListener("click",function(e){if(e.target===scrim)close();});
+    function close(){scrim.remove();}
+
+    function refreshOffWarn(){
+      var sid=sheet.querySelector("#f-staff").value;
+      var dt=sheet.querySelector("#f-date").value;
+      var box=sheet.querySelector("#f-offwarn");
+      if(sid&&dt&&hasDayoff(sid,dt)){
+        var rs=db.dayoffs.filter(function(o){return o.staffId===sid&&o.date===dt;})[0];
+        box.innerHTML='<div class="form-warn">⚠ この職員はこの日を希望休に登録しています'+(rs&&rs.reason?'（'+esc(rs.reason)+'）':'')+'。</div>';
+      }else{ box.innerHTML=""; }
+    }
+    sheet.querySelector("#f-staff").onchange=refreshOffWarn;
+    sheet.querySelector("#f-date").onchange=refreshOffWarn;
+    refreshOffWarn();
+
+    sheet.querySelectorAll(".preset").forEach(function(p){
+      p.onclick=function(){
+        sheet.querySelectorAll(".preset").forEach(function(x){x.classList.remove("active");});
+        p.classList.add("active");
+        sheet.querySelector("#f-start").value=p.getAttribute("data-s");
+        sheet.querySelector("#f-end").value=p.getAttribute("data-e");
+      };
+    });
+    sheet.querySelector("#f-save").onclick=function(){
+      var staffId=sheet.querySelector("#f-staff").value;
+      var date=sheet.querySelector("#f-date").value;
+      var start=sheet.querySelector("#f-start").value;
+      var end=sheet.querySelector("#f-end").value;
+      var klass=sheet.querySelector("#f-class").value;
+      if(!staffId){toast("職員を選んでください");return;}
+      if(!date||!start||!end){toast("日付と時間を入力してください");return;}
+      if(toMin(end)<=toMin(start)){toast("終了時刻は開始より後にしてください");return;}
+      if(hasDayoff(staffId,date)){ if(!confirm("この職員はこの日を希望休に登録しています。それでもシフトを入れますか？"))return; }
+      if(ed){ ed.staffId=staffId;ed.date=date;ed.start=start;ed.end=end;ed.klass=klass; toast("保存しました"); }
+      else{ db.shifts.push({id:"sh"+Date.now(),staffId:staffId,date:date,start:start,end:end,klass:klass}); toast("追加しました"); }
+      save(); close(); state.sel=date;
+      if(state.view==="calendar")render(); else {state.view="day";render();}
+    };
+    if(ed){
+      sheet.querySelector("#f-del").onclick=function(){
+        if(!confirm("このシフトを削除しますか？"))return;
+        db.shifts=db.shifts.filter(function(s){return s.id!==ed.id;});
+        save();close();toast("削除しました");render();
+      };
+    }
+  }
+
+  // ---------- install (PWA) ----------
+  var deferredPrompt=null;
+  window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();deferredPrompt=e;if(state.view==="settings")renderSettings();});
+  function doInstall(){ if(!deferredPrompt)return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(function(){deferredPrompt=null;}); }
+
+  // ---------- events ----------
+  $("fab").onclick=function(){ openForm(null); };
+  document.querySelectorAll(".tabbar button").forEach(function(b){
+    b.onclick=function(){ state.view=b.getAttribute("data-v"); if(state.view==="today")state.sel=todayKey(); render(); };
+  });
+
+  // ---------- service worker ----------
+  if("serviceWorker" in navigator){
+    window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+  }
+
+  state.ym=new Date(); state.ym.setDate(1);
+  render();
+})();
+</script>
+</body>
+</html>
